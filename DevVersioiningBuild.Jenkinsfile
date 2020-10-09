@@ -19,8 +19,8 @@ pipeline {
         stage('Git Checkout') {
             steps {
                 git branch: 'master',
-                    credentialsId: 'c254bd05-d7ee-4097-9c1e-9f323c938820',
-                    url: 'https://github.com/neerajgulia92/automated-dev-update-poc.git'
+                    credentialsId: 'harsh',
+                    url: 'https://github.com/choudhary998/automated-dev-update-poc.git'
 
                 sh "ls -lat"
             }
@@ -29,34 +29,34 @@ pipeline {
             steps {
                 println "***********************************OLDER_VERSION version is ${env.COMMIT_VERSION}"
                 echo 'Build steps are in progress!!!'
-                sh '''SBT_VERSION=1.3.13
-                      sbt test
-                      sbt "runMain example.Hello"
-                      sbt stage
-                   '''
+                // sh '''SBT_VERSION=1.3.13
+                //       sbt test
+                //       sbt "runMain example.Hello"
+                //       sbt stage
+                //    '''
             }
         }
-        stage('ECR Login Stage') {
-            steps {
-                echo 'Login into the DEV Account ECR'
-                sh "aws ecr get-login-password --region ${params.REGION} | tail -n +1 | sudo docker login --username AWS --password-stdin  ${params.DEV_ACCOUNT_ID}.dkr.ecr.${params.REGION}.amazonaws.com"
-            }
-        }
-        stage('Docker Build') {
-            steps {
-                echo 'Build the Docker Image'
-                sh "sudo docker build -t ${params.DEV_REPO_NAME} . "
-            }
-        }
+        // stage('ECR Login Stage') {
+        //     steps {
+        //         echo 'Login into the DEV Account ECR'
+        //         sh "aws ecr get-login-password --region ${params.REGION} | tail -n +1 | sudo docker login --username AWS --password-stdin  ${params.DEV_ACCOUNT_ID}.dkr.ecr.${params.REGION}.amazonaws.com"
+        //     }
+        // }
+        // stage('Docker Build') {
+        //     steps {
+        //         echo 'Build the Docker Image'
+        //         sh "sudo docker build -t ${params.DEV_REPO_NAME} . "
+        //     }
+        // }
         stage('Versioning') {
             steps {
                 echo 'Bumping up the version!!!'
                 sh "sudo bash set_version.sh"
-                withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'c254bd05-d7ee-4097-9c1e-9f323c938820', usernameVariable: 'GIT_USERNAME', passwordVariable: 'GIT_PASSWORD']]) {
+                withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'harsh', usernameVariable: 'GIT_USERNAME', passwordVariable: 'GIT_PASSWORD']]) {
                     sh '''
                         git add .
                         git commit -m "Latest version pushed into the file version.txt"
-                        git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/neerajgulia92/automated-dev-update-poc.git
+                        git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/choudhary998/automated-dev-update-poc.git
                         git status
                     '''
                 }
@@ -65,8 +65,8 @@ pipeline {
         stage('Git Checkout 2') {
             steps {
                 git branch: 'master',
-                    credentialsId: 'c254bd05-d7ee-4097-9c1e-9f323c938820',
-                    url: 'https://github.com/neerajgulia92/automated-dev-update-poc.git'
+                    credentialsId: 'harsh',
+                    url: 'https://github.com/choudhary998/automated-dev-update-poc.git'
 
                 sh "ls -lat"
                 sh "cat version.txt"
@@ -77,9 +77,14 @@ pipeline {
                 script {
                     def IMAGE_TAG = readFile(file: 'version.txt')
                     println(IMAGE_TAG)
-                    echo 'Tag and Push the Docker Image to ECR'
-                    sh "sudo docker tag ${params.DEV_REPO_NAME} ${params.DEV_ACCOUNT_ID}.dkr.ecr.${params.REGION}.amazonaws.com/${params.DEV_REPO_NAME}:${IMAGE_TAG}"
-                    sh "sudo docker push ${params.DEV_ACCOUNT_ID}.dkr.ecr.${params.REGION}.amazonaws.com/${params.DEV_REPO_NAME}:${IMAGE_TAG}"
+                    sh '''
+                        git tag ${IMAGE_TAG}
+                        git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/choudhary998/automated-dev-update-poc.git ${IMAGE_TAG}
+                        git status
+                    '''                    
+                    // echo 'Tag and Push the Docker Image to ECR'
+                    // sh "sudo docker tag ${params.DEV_REPO_NAME} ${params.DEV_ACCOUNT_ID}.dkr.ecr.${params.REGION}.amazonaws.com/${params.DEV_REPO_NAME}:${IMAGE_TAG}"
+                    // sh "sudo docker push ${params.DEV_ACCOUNT_ID}.dkr.ecr.${params.REGION}.amazonaws.com/${params.DEV_REPO_NAME}:${IMAGE_TAG}"
                 }
             }
         }
